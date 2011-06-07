@@ -32,6 +32,7 @@ require 'boxgrinder-build/plugins/platform/virtualbox/virtualbox-plugin'
 
 require 'boxgrinder-build/plugins/os/centos/centos-plugin'
 require 'boxgrinder-build/plugins/os/rhel/rhel-plugin'
+require 'boxgrinder-build/plugins/os/sl/sl-plugin'
 require 'boxgrinder-build/plugins/os/fedora/fedora-plugin'
 
 module BoxGrinder
