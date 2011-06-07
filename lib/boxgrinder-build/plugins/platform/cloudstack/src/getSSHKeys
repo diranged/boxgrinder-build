@@ -1,0 +1,84 @@
+#!/bin/bash
+# chkconfig: 2345 95 20
+# description: getSSHKeys
+# processname: getSSHKeys
+#
+export PATH=:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin
+# Source function library.
+. /etc/rc.d/init.d/functions
+ 
+# Source networking configuration.
+[ -r /etc/sysconfig/network ] && . /etc/sysconfig/network
+ 
+# Check that networking is up.
+[ "${NETWORKING}" = "no" ] && exit 1
+
+# Check that we're even doing DHCP. If not, exit quietly, we're probably not an 'instance'
+DHCPSERVERIDENTIFIER=`grep "dhcp-server-identifier" /var/lib/dhclient/dhclient-eth0.leases`
+let isDHCP=$?
+if [ $isDHCP -gt 0 ]; then
+	echo "host is not using dhcp, not an 'instance', exiting."
+	exit 0
+fi
+DHCPSERVER=`echo $DHCPSERVERIDENTIFIER | tail -1 | awk '{print $3}' | sed 's/;//g'`
+ 
+OUTPUT="/var/ec2"
+FALLBACK="169.254.169.254"
+
+start() {
+	if [ ! -d ${OUTPUT} ] ; then
+		mkdir -p ${OUTPUT}
+		chmod 600 ${OUTPUT}
+	fi
+
+	if [ -e ${OUTPUT}/authorized_keys ]; then
+		echo "${OUTPUT}/authorized_keys already exists. exiting."
+		exit 0
+	else
+		if [ ! -d /root/.ssh ] ; then
+			mkdir -p /root/.ssh
+			chmod 700 /root/.ssh
+		fi
+
+		# Fetch public key using HTTP
+		echo "attempting to fetch SSH keys from ${DHCPSERVER}..."
+		/usr/bin/curl --connect-timeout 5 --retry 3 --retry-delay 2 -f http://${DHCPSERVER}/latest/public-keys > ${OUTPUT}/authorized_keys
+
+		let STATUS=$?
+		if [ $STATUS -gt 0 ]; then 
+			echo "attempting backup address ($FALLBACK)..."
+			/usr/bin/curl --connect-timeout 5 --retry 3 --retry-delay 2 -f http://${FALLBACK}/latest/public-keys > ${OUTPUT}/authorized_keys || exit 1
+		fi
+	
+		if [ $? -eq 0 ] ; then
+			cat ${OUTPUT}/authorized_keys >> /root/.ssh/authorized_keys
+			chmod 600 /root/.ssh/authorized_keys
+		fi
+	fi
+} 
+stop() {
+	echo "Nothing to do here"
+}
+ 
+restart() {
+	stop
+	start
+}
+ 
+# See how we were called.
+case "$1" in
+	start)
+		start
+		;;
+	stop)
+		stop
+		;;
+	restart)
+		restart
+		;;
+	*)
+		echo $"Usage: $0 {start|stop}"
+		exit 1
+esac
+
+exit $?
