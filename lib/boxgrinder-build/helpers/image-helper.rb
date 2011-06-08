@@ -63,7 +63,11 @@ module BoxGrinder
     #
     # See also https://bugzilla.redhat.com/show_bug.cgi?id=690819
     #
-    def sync_filesystem(guestfs, guestfs_helper)
+    def sync_filesystem(guestfs, guestfs_helper, options = {})
+      options = {
+          :filesystem_type => @appliance_config.default_filesystem_type
+      }.merge(options)
+
       devices = guestfs.list_devices
       in_device = devices.first
       out_device = devices.last
@@ -83,7 +87,7 @@ module BoxGrinder
       guestfs.mkmountpoint('/out/in')
 
       # Create filesystem on EC2 disk
-      guestfs.mkfs(@appliance_config.default_filesystem_type, out_device)
+      guestfs.mkfs(options[:filesystem_type], out_device)
       # Set root partition label
       guestfs.set_e2label(out_device, '79d3d2d4') # This is a CRC32 from /
 

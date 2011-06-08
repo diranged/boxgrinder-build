@@ -33,7 +33,8 @@ module BoxGrinder
 
       ## Now that the disk is created, prep it and copy all the data from the old drive to the new one.
       @image_helper.customize([@previous_deliverables.disk, @deliverables.disk], :automount => false) do |guestfs, guestfs_helper| 
-	@image_helper.sync_filesystem(guestfs, guestfs_helper)
+        ## Make sure we use EXT3 as the filesystem, Citrix 5.6 doesnt support ext4 at all
+        @image_helper.sync_filesystem(guestfs, guestfs_helper, :filesystem_type => 'ext3')
 
         ## Using the defined commands below, set up this image
         build_initrd(guestfs,guestfs_helper)
