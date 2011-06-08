@@ -86,6 +86,20 @@ module BoxGrinder
       menu_lst_data.gsub!(/#KERNEL_VERSION#/, @linux_helper.kernel_version(guestfs))
       menu_lst_data.gsub!(/#KERNEL_IMAGE_NAME#/, @linux_helper.kernel_image_name(guestfs))
 
+      if (@appliance_config.os.name == 'rhel' or @appliance_config.os.name == 'centos' or @appliance_config.os.name == 'sl') and @appliance_config.os.version == '6'
+        @log.debug "Adding hvc0 to grub config..."
+        menu_lst_data.gsub!(/#CONSOLE_DEVICE#/, "hvc0")
+
+        @log.debug "Adding hvc0 to /etc/securetty..."
+        guestfs.sh("echo hvc0 >> /etc/securetty") 
+      else
+        @log.debug "Adding xvc0 to grub config..."
+        menu_lst_data.gsub!(/#CONSOLE_DEVICE#/, "xvc0")
+
+        @log.debug "Adding xvc0 to /etc/securetty..."
+        guestfs.sh("echo xvc0 >> /etc/securetty") 
+      end
+
       menu_lst = Tempfile.new('menu_lst')
       menu_lst << menu_lst_data
       menu_lst.flush
@@ -95,11 +109,7 @@ module BoxGrinder
       menu_lst.close
       @log.debug "'/boot/grub/menu.lst' file uploaded."
 
-      @log.debug "Adding xvc0 to /etc/securetty..."
-      guestfs.sh("echo xvc0 >> /etc/securetty") 
 
-      @log.debug "Adding hvc0 to /etc/securetty..."
-      guestfs.sh("echo hvc0 >> /etc/securetty") 
     end
 
     def install_xe_guest_tools(guestfs)
