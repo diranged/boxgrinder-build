@@ -5,7 +5,7 @@
 
 Summary: A tool for creating appliances from simple plain text files
 Name: rubygem-%{gemname}
-Version: 0.9.2
+Version: 0.9.4
 Release: 1%{?dist}
 Group: Development/Languages
 License: LGPLv3+
@@ -16,14 +16,10 @@ Requires: ruby(abi) = %{rubyabi}
 Requires: rubygem(boxgrinder-core) >= 0.3.0
 Requires: rubygem(boxgrinder-core) < 0.4.0
 Requires: ruby-libguestfs
-Requires: parted
-Requires: e2fsprogs
 
 # Fix for rubygem-aws package
 Requires: rubygem(activesupport)
 
-# For EL5
-BuildRoot: %(mktemp -ud %{_tmppath}/%{name}-%{version}-%{release}-XXXXXX)
 BuildArch: noarch
 
 BuildRequires: rubygem(rake)
@@ -60,11 +56,6 @@ BuildRequires: rubygem(progressbar)
 # RPM-BASED
 Requires: appliance-tools
 Requires: yum-utils
-
-# EC2
-Requires: rsync
-Requires: wget
-Requires: util-linux
 
 # ElasticHosts
 Requires: rubygem(rest-client)
@@ -119,6 +110,7 @@ mkdir -p %{buildroot}/%{gemdir}
             --force --rdoc %{SOURCE0}
 mv %{_builddir}%{gemdir}/bin/* %{buildroot}/%{_bindir}
 find %{_builddir}%{geminstdir}/bin -type f | xargs chmod a+x
+rm -rf %{_builddir}/%{geminstdir}/integ/packages/*.rpm
 cp -r %{_builddir}%{gemdir}/* %{buildroot}/%{gemdir}
 
 %check
@@ -143,12 +135,39 @@ popd
 %files doc
 %defattr(-, root, root, -)
 %{geminstdir}/spec
+%{geminstdir}/integ
 %{geminstdir}/Rakefile
 %{geminstdir}/rubygem-%{gemname}.spec
 %{geminstdir}/%{gemname}.gemspec
 %{gemdir}/doc/%{gemname}-%{version}
 
 %changelog
+
+* Wed Jun 29 2011 Marc Savy <msavy@redhat.com> - 0.9.4-1
+- Upstream release: 0.9.4
+- [BGBUILD-263] NoMethodError: undefined method `item' for nil:NilClass while creating EBS appliance
+
+* Fri Jun 17 2011 Marc Savy <msavy@redhat.com> - 0.9.3-1
+- Upstream release: 0.9.3
+- [BGBUILD-232] boxgrinder doesn't validate config early enough
+- [BGBUILD-237] Tilde characters break creation of yum.conf
+- [BGBUILD-223] BoxGrinder hangs because qemu.wrapper does not detect x86_64 properly on CentOS 5.6
+- [BGBUILD-241] Add Scientific Linux support
+- [BGBUILD-220] Group names have spaces (to the user), this breaks schema rules for packages
+- [BGBUILD-222] Allow overwrite of uploaded ec2 image
+- [BGBUILD-225] Move PAE configuration parameter to operating system configuration
+- [BGBUILD-224] EBS Plugin Support for CentOS v5.5 and fix for non-integer EBS disk sizes
+- [BGBUILD-231] Cannot register Fedora 15 EC2 AMI with S3 delivery plugin in eu-west-1 availability zone
+- [BGBUILD-193] EBS delivery plugin timing/concurrency issues
+- [BGBUILD-247] ap-northeast-1 end-point is missing in S3 plugin (added Tokyo region)
+- [BGBUILD-251] Add ap-northeast-1 (tokyo) region for EBS plugin
+- [BGBUILD-248] Throw error in S3 plugin if invalid region is specified
+- [BGBUILD-252] rc.local script fills ~/.ssh/authorized_keys with a duplicate key every boot
+- [BGBUILD-250] EBS plugin incorrectly determines that non-US regions are not EC2 instances
+- [BGBUILD-254] Not able to deliver EBS AMIs to regions other than us-east-1
+- [BGBUILD-260] Wrong EC2 discovery causing libguestfs errors on non US regions
+- [BGBUILD-261] Decrease amount of debug log when downloading or uploading file using guestfs
+
 * Thu May 05 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.2-1
 - Upstream release: 0.9.2
 - [BGBUILD-148] Add support for building CentOS/RHEL images on Fedora

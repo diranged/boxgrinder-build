@@ -36,6 +36,7 @@ require 'boxgrinder-build/plugins/os/centos/centos-plugin'
 require 'boxgrinder-build/plugins/os/rhel/rhel-plugin'
 require 'boxgrinder-build/plugins/os/sl/sl-plugin'
 require 'boxgrinder-build/plugins/os/fedora/fedora-plugin'
+require 'boxgrinder-build/plugins/os/sl/sl-plugin'
 
 module BoxGrinder
   class PluginHelper

@@ -22,16 +22,11 @@ require 'boxgrinder-build/helpers/package-helper'
 require 'AWS'
 require 'aws'
 
-# TODO remove this when it'll become not necessary
-# quick fix for old active_support require issue in EPEL 5
-require 'active_support/basic_object'
-require 'active_support/duration'
-
 module BoxGrinder
   class S3Plugin < BasePlugin
     REGION_OPTIONS = {
         'eu-west-1' => {
-            :endpoint => 's3.amazonaws.com',
+            :endpoint => 's3-eu-west-1.amazonaws.com',
             :location => 'EU',
             :kernel => {
                 'i386' => {:aki => 'aki-4deec439'},
@@ -46,6 +41,16 @@ module BoxGrinder
                 'i386' => {:aki => 'aki-13d5aa41'},
                 'x86_64' => {:aki => 'aki-11d5aa43'}
             }
+        },
+
+        'ap-northeast-1' => {
+            :endpoint => 's3-ap-northeast-1.amazonaws.com',
+            :location => 'ap-northeast-1',
+            :kernel => {
+                'i386' => {:aki => 'aki-d209a2d3'},
+                'x86_64' => {:aki => 'aki-d409a2d5'}
+            }
+
         },
 
         'us-west-1' => {
@@ -68,38 +73,55 @@ module BoxGrinder
     }
 
     def after_init
-      set_default_config_value('overwrite', false)
-      set_default_config_value('path', '/')
-      set_default_config_value('region', 'us-east-1')
-
       register_supported_os("fedora", ['13', '14', '15'])
       register_supported_os("centos", ['5'])
       register_supported_os("rhel", ['5', '6'])
+      register_supported_os("sl", ['5', '6'])
 
       @ami_build_dir = "#{@dir.base}/ami"
       @ami_manifest = "#{@ami_build_dir}/#{@appliance_config.name}.ec2.manifest.xml"
     end
 
-    def execute(type = :ami)
+    def validate
+      set_default_config_value('overwrite', false)
+      set_default_config_value('path', '/')
+      set_default_config_value('region', 'us-east-1')
       validate_plugin_config(['bucket', 'access_key', 'secret_access_key'], 'http://boxgrinder.org/tutorials/boxgrinder-build-plugins/#S3_Delivery_Plugin')
 
-      case type
+      subtype(:ami) do
+        set_default_config_value('snapshot', false)
+        validate_plugin_config(['cert_file', 'key_file', 'account_number'], 'http://boxgrinder.org/tutorials/boxgrinder-build-plugins/#S3_Delivery_Plugin')
+      end
+
+      raise PluginValidationError, "Invalid region specified: #{@plugin_config['region']}. This plugin only aware of the following regions: #{REGION_OPTIONS.keys.join(", ")}" unless REGION_OPTIONS.has_key?(@plugin_config['region'])
+
+    end
+
+    def execute
+      case @type
         when :s3
           upload_to_bucket(@previous_deliverables)
         when :cloudfront
           upload_to_bucket(@previous_deliverables, 'public-read')
         when :ami
-          set_default_config_value('snapshot', false)
-          validate_plugin_config(['cert_file', 'key_file', 'account_number'], 'http://boxgrinder.org/tutorials/boxgrinder-build-plugins/#S3_Delivery_Plugin')
-
           @plugin_config['account_number'] = @plugin_config['account_number'].to_s.gsub(/-/, '')
 
           @ec2 = AWS::EC2::Base.new(:access_key_id => @plugin_config['access_key'], :secret_access_key => @plugin_config['secret_access_key'], :server => "ec2.#{@plugin_config['region']}.amazonaws.com")
 
           ami_dir = ami_key(@appliance_config.name, @plugin_config['path'])
           ami_manifest_key = "#{ami_dir}/#{@appliance_config.name}.ec2.manifest.xml"
+          s3_object_exists = s3_object_exists?(ami_manifest_key)
 
-          if !s3_object_exists?(ami_manifest_key) or @plugin_config['snapshot']
+           @log.debug "Going to check whether s3 object exists"
+
+          if s3_object_exists and @plugin_config['overwrite']
+            @log.info "Object exists, attempting to deregister an existing image"
+            deregister_image(ami_manifest_key) # Remove existing image
+            bucket().delete_folder(ami_dir) # Avoid triggering dupe detection
+          end
+
+          if !s3_object_exists or @plugin_config['snapshot']
+            @log.info "Doing bundle/snapshot"
             bundle_image(@previous_deliverables)
             fix_sha1_sum
             upload_image(ami_dir)
@@ -131,10 +153,10 @@ module BoxGrinder
 
       remote_path = "#{s3_path(@plugin_config['path'])}#{File.basename(@deliverables[:package])}"
       size_b = File.size(@deliverables[:package])
-
       key = bucket(true, permissions).key(remote_path.gsub(/^\//, '').gsub(/\/\//, ''))
 
-      unless key.exists? or @plugin_config['overwrite']
+      if !key.exists? or @plugin_config['overwrite']
+        @log.info "Will overwrite existing file #{remote_path}" if key.exists? and @plugin_config['overwrite']
         @log.info "Uploading #{File.basename(@deliverables[:package])} (#{size_b/1024/1024}MB) to '#{@plugin_config['bucket']}#{remote_path}' path..."
         key.put(open(@deliverables[:package]), permissions, :server => REGION_OPTIONS[@plugin_config['region']][:endpoint])
         @log.info "Appliance #{@appliance_config.name} uploaded to S3."
@@ -185,6 +207,16 @@ module BoxGrinder
       end
     end
 
+    def deregister_image(ami_manifest_key)
+      info = ami_info(ami_manifest_key)
+      if info
+        @ec2.deregister_image(:image_id => info.imageId)
+        @log.info "Preexisting image '#{info.imageLocation}' for #{@appliance_config.name} was successfully de-registered, it had id: #{info.imageId} (region: #{@plugin_config['region']})."
+      else # This occurs when the AMI is de-registered externally but the file structure is left intact in S3. In this instance, we simply overwrite and register the image as if it were "new".
+        @log.info "Possible dangling/unregistered AMI skeleton structure in S3, there is nothing to deregister"
+      end
+    end
+
     def ami_info(ami_manifest_key)
       ami_info = nil
 
@@ -210,11 +242,16 @@ module BoxGrinder
 
       return "#{base_path}/#{@appliance_config.hardware.arch}" unless @plugin_config['snapshot']
 
+      @log.info "Determining snapshot name"
+
       snapshot = 1
 
       while s3_object_exists?("#{base_path}-SNAPSHOT-#{snapshot}/#{@appliance_config.hardware.arch}/")
         snapshot += 1
       end
+
+      # Reuse the last key (if there was one)
+      snapshot -=1 if snapshot > 1 and @plugin_config['overwrite']
 
       "#{base_path}-SNAPSHOT-#{snapshot}/#{@appliance_config.hardware.arch}"
     end
@@ -224,7 +261,7 @@ module BoxGrinder
 
       begin
         b = bucket(false)
-        # Retrieve only one or no keys (if bucket is empty), throw an exception if bucket doesn't exists
+        # Retrieve only one or no keys (if bucket is empty), throw an exception if bucket doesn't exist
         b.keys('max-keys' => 1)
 
         if b.key(path).exists?

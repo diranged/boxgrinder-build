@@ -39,25 +39,31 @@ module BoxGrinder
       @appliance_config.stub!(:hardware).and_return(OpenCascade.new({:arch => 'x86_64'}))
       @appliance_config.stub!(:is64bit?).and_return(true)
 
-      @plugin = FedoraPlugin.new.init(@config, @appliance_config, :log => Logger.new('/dev/null'), :plugin_info => {:class => BoxGrinder::FedoraPlugin, :type => :os, :name => :fedora, :full_name => "Fedora", :versions => ["11", "12", "13", "14", "rawhide"]})
+      @plugin = FedoraPlugin.new.init(@config, @appliance_config, {:class => BoxGrinder::FedoraPlugin, :type => :os, :name => :fedora, :full_name => "Fedora", :versions => ["11", "12", "13", "14", "rawhide"]}, :log => LogHelper.new(:level => :trace, :type => :stdout))
 
       @config = @plugin.instance_variable_get(:@config)
       @appliance_config = @plugin.instance_variable_get(:@appliance_config)
       @exec_helper = @plugin.instance_variable_get(:@exec_helper)
       @log = @plugin.instance_variable_get(:@log)
+
+
+      @plugin_config = @plugin.instance_variable_get(:@plugin_config).merge(
+          {
+              'access_key' => 'access_key',
+              'secret_access_key' => 'secret_access_key',
+              'bucket' => 'bucket',
+              'account_number' => '0000-0000-0000',
+              'cert_file' => '/path/to/cert/file',
+              'key_file' => '/path/to/key/file'
+          }
+      )
+
+      @plugin.instance_variable_set(:@plugin_config, @plugin_config)
     end
 
     it "should normalize packages for 32bit for pae enabled system" do
-      packages = ['abc', 'def', 'kernel']
-
-      @appliance_config.should_receive(:is64bit?).and_return(false)
-
-      @plugin.normalize_packages(packages)
-      packages.should == ["abc", "def", "@core", "system-config-firewall-base", "dhclient", "kernel-PAE"]
-    end
-
-    it "should normalize packages for 32bit for pae enabled system" do
-      @appliance_config.stub!(:os).and_return(OpenCascade.new(:name => 'fedora', :version => '13', :pae => false))
+      @appliance_config.stub!(:os).and_return(OpenCascade.new(:name => 'fedora', :version => '13'))
+      @plugin_config.merge!('PAE' => false)
 
       packages = ['abc', 'def', 'kernel']
 

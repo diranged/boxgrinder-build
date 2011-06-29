@@ -43,7 +43,7 @@ module BoxGrinder
 
       @plugin = BasePlugin.new
       @plugin.should_receive(:merge_plugin_config)
-      @plugin.init(@config, @appliance_config, :plugin_info => {:name => :plugin_name, :full_name => "Amazon Simple Storage Service (Amazon S3)"}, :log => @log)
+      @plugin.init(@config, @appliance_config, {:name => :plugin_name, :full_name => "Amazon Simple Storage Service (Amazon S3)"}, :log => @log)
     end
 
     it "should be initialized after running init method" do
@@ -81,26 +81,32 @@ module BoxGrinder
       @plugin.instance_variable_get(:@dir).tmp.should == "build/path/plugin_name-plugin/tmp"
     end
 
-    it "should check if deliverables exists and return true" do
-      @plugin.register_deliverable(:disk => "disk")
-      @plugin.register_deliverable(:abc => "def")
-      @plugin.register_deliverable(:file => "a/path")
+    describe ".deliverables_exists?" do
+      it "should check if deliverables exists and return true" do
+        @plugin.register_deliverable(:disk => "disk")
+        @plugin.register_deliverable(:abc => "def")
+        @plugin.register_deliverable(:file => "a/path")
 
-      File.should_receive(:exists?).exactly(3).times.with(any_args()).and_return(true)
+        File.should_receive(:exists?).exactly(3).times.with(any_args()).and_return(true)
 
-      @plugin.deliverables_exists?.should == true
-    end
+        @plugin.deliverables_exists?.should == true
+      end
 
-    it "should check if deliverables exists and return false" do
-      @plugin.register_deliverable(:disk => "disk")
-      @plugin.register_deliverable(:abc => "def")
-      @plugin.register_deliverable(:file => "a/path")
+      it "should check if deliverables exists and return false" do
+        @plugin.register_deliverable(:disk => "disk")
+        @plugin.register_deliverable(:abc => "def")
+        @plugin.register_deliverable(:file => "a/path")
 
-      File.should_receive(:exists?).once.with(any_args()).and_return(true)
-      File.should_receive(:exists?).once.with(any_args()).and_return(false)
-      File.should_not_receive(:exists?)
+        File.should_receive(:exists?).once.with(any_args()).and_return(true)
+        File.should_receive(:exists?).once.with(any_args()).and_return(false)
+        File.should_not_receive(:exists?)
 
-      @plugin.deliverables_exists?.should == false
+        @plugin.deliverables_exists?.should == false
+      end
+
+      it "should return false if no deliverables are registerd" do
+        @plugin.deliverables_exists?.should == false
+      end
     end
 
     describe ".run" do
@@ -111,12 +117,12 @@ module BoxGrinder
         FileUtils.should_receive(:rm_rf).with("build/path/plugin_name-plugin/tmp")
         FileUtils.should_receive(:mkdir_p).with("build/path/plugin_name-plugin/tmp")
 
-        @plugin.should_receive(:execute).with('a', 3)
+        @plugin.should_receive(:execute)
 
         FileUtils.should_receive(:mv).with("build/path/plugin_name-plugin/tmp/disk", "build/path/plugin_name-plugin/disk")
         FileUtils.should_receive(:rm_rf).with("build/path/plugin_name-plugin/tmp")
 
-        @plugin.run('a', 3)
+        @plugin.run
       end
 
       it "should fail if OS is not supported" do
