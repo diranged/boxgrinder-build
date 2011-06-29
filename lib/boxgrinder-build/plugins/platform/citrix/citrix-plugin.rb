@@ -42,7 +42,6 @@ module BoxGrinder
         enable_networking(guestfs)
         upload_rc_local(guestfs)
         install_menu_lst(guestfs)
-        install_xe_guest_tools(guestfs)
 
         ## If we were called by another module, pass back guestfs/guestfs_helper
         yield guestfs, guestfs_helper if block_given?
@@ -110,11 +109,6 @@ module BoxGrinder
       @log.debug "'/boot/grub/menu.lst' file uploaded."
 
 
-    end
-
-    def install_xe_guest_tools(guestfs)
-      @log.debug "Installing XE Guest Utils... "
-      guestfs.sh("rpm -ivh http://ftp.prz.edu.pl/archlinux/archrak/src/xe-guest-utilities-5.6.0-578.#{@appliance_config.hardware.base_arch}.rpm http://ftp.prz.edu.pl/archlinux/archrak/src/xe-guest-utilities-xenstore-5.6.0-578.#{@appliance_config.hardware.base_arch}.rpm ")
     end
 
     # enable networking on default runlevels
