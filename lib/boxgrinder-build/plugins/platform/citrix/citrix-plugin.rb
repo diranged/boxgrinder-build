@@ -5,7 +5,7 @@ require 'tempfile'
 module BoxGrinder
   class CitrixPlugin < BasePlugin
     def after_init
-      register_deliverable(:disk => "#{@appliance_config.name}.raw")
+      register_deliverable(:disk => "#{@appliance_config.name}.vhd")
       register_supported_os('rhel', ['5', '6'])
       register_supported_os('centos', ['5', '6'])
       register_supported_os('sl', ['5', '6'])
@@ -29,12 +29,16 @@ module BoxGrinder
         size += partition['size']
         @log.debug "Total size is now: #{size}"
       end
-      @image_helper.create_disk(@deliverables.disk, size.to_f)
+      @image_helper.create_disk("#{@deliverables.disk}.tmp", size.to_f)
 
       ## Now that the disk is created, prep it and copy all the data from the old drive to the new one.
-      @image_helper.customize([@previous_deliverables.disk, @deliverables.disk], :automount => false) do |guestfs, guestfs_helper| 
+      @image_helper.customize([@previous_deliverables.disk, "#{@deliverables.disk}.tmp"], :automount => false) do |guestfs, guestfs_helper| 
         ## Make sure we use EXT3 as the filesystem, Citrix 5.6 doesnt support ext4 at all
         @image_helper.sync_filesystem(guestfs, guestfs_helper, :filesystem_type => 'ext3')
+
+        ## Use local copy of /bin/vhd-util to convert the image from .raw to .vhd
+        @log.debug "Converting #{@deliverables.disk}.tmp to #{@deliverables.disk} with vhd-util..."
+        @exec_helper.execute "/bin/vhd-util convert -s 0 -t 1 -i '#{@deliverables.disk}.tmp' -o '#{@deliverables.disk}'"
 
         ## Using the defined commands below, set up this image
         build_initrd(guestfs,guestfs_helper)
