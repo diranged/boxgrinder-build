@@ -4,6 +4,11 @@ require 'tempfile'
 
 module BoxGrinder
   class CloudStackPlugin < CitrixPlugin
+
+    ## Use local copy of /bin/vhd-util to convert the image from .raw to .vhd
+    @log.debug "Converting #{@deliverables.disk} from fixed to dynamic with vhd-util..."
+    @exec_helper.execute "/bin/vhd-util convert -s 1 -t 2 -i '#{@deliverables.disk}' -o '#{@deliverables.disk}'"
+
     def execute
       @log.info "Beginning CloudStack image customization..."
       build_citrix do |guestfs, guestfs_helper|
