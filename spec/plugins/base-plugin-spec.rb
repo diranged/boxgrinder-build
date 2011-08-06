@@ -17,6 +17,7 @@
 # 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 
 require 'rubygems'
+require 'rspec'
 require 'boxgrinder-build/plugins/base-plugin'
 require 'boxgrinder-core/helpers/log-helper'
 require 'yaml'
@@ -99,7 +100,6 @@ module BoxGrinder
 
         File.should_receive(:exists?).once.with(any_args()).and_return(true)
         File.should_receive(:exists?).once.with(any_args()).and_return(false)
-        File.should_not_receive(:exists?)
 
         @plugin.deliverables_exists?.should == false
       end
