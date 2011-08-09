@@ -62,7 +62,7 @@ module BoxGrinder
 
           @log.debug "Installing kernel-xen RPM...."
           # because we need to install kernel-xen package
-          guestfs.sh("yum -y install kernel-xen")
+	  guestfs_helper.sh("yum -y install kernel-xen", :arch => @appliance_config.hardware.arch)
 
           @log.debug "Rebuilding the initrd file..."
           # and add require modules
