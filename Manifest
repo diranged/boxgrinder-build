@@ -19,6 +19,7 @@ integ/appliances/_repos_testlocal_ephemeral_noarch.appl
 integ/appliances/_test_base.appl
 integ/appliances/gnome-fedora.appl
 integ/appliances/jeos-centos.appl
+integ/appliances/jeos-f16.appl
 integ/appliances/jeos-fedora.appl
 integ/appliances/modular.appl
 integ/packages/ephemeral-repo-test-0.1-1.noarch.rpm
@@ -28,12 +29,15 @@ integ/spec/modular-spec.rb
 lib/boxgrinder-build.rb
 lib/boxgrinder-build/appliance.rb
 lib/boxgrinder-build/helpers/augeas-helper.rb
+lib/boxgrinder-build/helpers/aws-helper.rb
+lib/boxgrinder-build/helpers/ec2-helper.rb
 lib/boxgrinder-build/helpers/guestfs-helper.rb
 lib/boxgrinder-build/helpers/image-helper.rb
 lib/boxgrinder-build/helpers/linux-helper.rb
 lib/boxgrinder-build/helpers/package-helper.rb
 lib/boxgrinder-build/helpers/plugin-helper.rb
 lib/boxgrinder-build/helpers/qemu.wrapper
+lib/boxgrinder-build/helpers/s3-helper.rb
 lib/boxgrinder-build/managers/plugin-manager.rb
 lib/boxgrinder-build/plugins/base-plugin.rb
 lib/boxgrinder-build/plugins/delivery/ebs/ebs-plugin.rb
@@ -68,11 +72,13 @@ lib/boxgrinder-build/plugins/platform/vmware/vmware-plugin.rb
 rubygem-boxgrinder-build.spec
 spec/appliance-spec.rb
 spec/helpers/augeas-helper-spec.rb
+spec/helpers/ec2-helper-spec.rb
 spec/helpers/guestfs-helper-spec.rb
 spec/helpers/image-helper-spec.rb
 spec/helpers/linux-helper-spec.rb
 spec/helpers/package-helper-spec.rb
 spec/helpers/plugin-helper-spec.rb
+spec/helpers/s3-helper-spec.rb
 spec/managers/plugin-manager-spec.rb
 spec/plugins/base-plugin-spec.rb
 spec/plugins/delivery/ebs/ebs-plugin-spec.rb

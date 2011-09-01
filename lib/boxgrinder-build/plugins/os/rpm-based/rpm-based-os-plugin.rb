@@ -113,6 +113,8 @@ module BoxGrinder
     end
 
     def build_with_appliance_creator(appliance_definition_file, repos = {})
+      @appliance_definition_file = appliance_definition_file
+
       if File.extname(appliance_definition_file).eql?('.ks')
         kickstart_file = appliance_definition_file
       else
@@ -141,13 +143,7 @@ module BoxGrinder
         disable_firewall(guestfs)
         set_motd(guestfs)
         install_repos(guestfs)
-
-        if @appliance_config.os.name == 'fedora' and @appliance_config.os.version == '15'
-          disable_biosdevname(guestfs)
-          change_runlevel(guestfs)
-          disable_netfs(guestfs)
-          link_mtab(guestfs)
-        end
+        install_files(guestfs)
 
         guestfs.sh("chkconfig firstboot off") if guestfs.exists('/etc/init.d/firstboot') != 0
 
@@ -181,35 +177,6 @@ module BoxGrinder
       else
         @log.debug "No commands specified, skipping."
       end
-    end
-
-    # https://issues.jboss.org/browse/BGBUILD-204
-    def disable_biosdevname(guestfs)
-      @log.debug "Disabling biosdevname for Fedora 15..."
-      guestfs.sh('sed -i "s/kernel\(.*\)/kernel\1 biosdevname=0/g" /boot/grub/grub.conf')
-      @log.debug "Biosdevname disabled."
-    end
-
-    # https://issues.jboss.org/browse/BGBUILD-204
-    def change_runlevel(guestfs)
-      @log.debug "Changing runlevel to multi-user non-graphical..."
-      guestfs.rm("/etc/systemd/system/default.target")
-      guestfs.ln_sf("/lib/systemd/system/multi-user.target", "/etc/systemd/system/default.target")
-      @log.debug "Runlevel changed."
-    end
-
-    # https://issues.jboss.org/browse/BGBUILD-204
-    def disable_netfs(guestfs)
-      @log.debug "Disabling network filesystem mounting..."
-      guestfs.sh("chkconfig netfs off")
-      @log.debug "Network filesystem mounting disabled."
-    end
-
-    # https://issues.jboss.org/browse/BGBUILD-209
-    def link_mtab(guestfs)
-      @log.debug "Linking /etc/mtab to /proc/self/mounts for Fedora 15..."
-      guestfs.ln_sf("/proc/self/mounts", "/etc/mtab")
-      @log.debug "/etc/mtab linked."
     end
 
     # https://issues.jboss.org/browse/BGBUILD-148
@@ -343,5 +310,55 @@ module BoxGrinder
       @log.debug "Repositories installed."
     end
 
+    # Copies specified files into appliance.
+    #
+    # There are two types of paths:
+    # 1. remote - starting with http:// or https:// or ftp://
+    # 2. local - all other.
+    #
+    # Please use relative paths. Relative means relative to the appliance definition file.
+    # Using absolute paths will cause creating whole directory structure in appliance,
+    # which is most probably not exactly what you want.
+    #
+    # https://issues.jboss.org/browse/BGBUILD-276
+    def install_files(guestfs)
+      @log.debug "Installing files specified in appliance definition file..."
+
+      @appliance_config.files.each do |dir, files|
+
+        @log.debug "Proceding files for '#{dir}' destination directory..."
+
+        local_files = []
+
+        # Create the directory if it doesn't exists
+        guestfs.mkdir_p(dir) unless guestfs.exists(dir) != 0
+
+        files.each do |f|
+          if f.match(/^(http|ftp|https):\/\//)
+            # Remote url provided
+            @log.trace "Remote url detected: '#{f}'."
+
+            # We have a remote file, try to download it using curl!
+            guestfs.sh("cd #{dir} && curl -O -L #{f}")
+          else
+            @log.trace "Local path detected: '#{f}'."
+
+            local_files << (f.match(/^\//) ? f : "#{File.dirname(@appliance_definition_file)}/#{f}")
+          end
+        end
+
+        next if local_files.empty?
+
+        @log.trace "Tarring files..."
+        @exec_helper.execute("tar -cvf /tmp/bg_install_files.tar --wildcards #{local_files.join(' ')}")
+        @log.trace "Files tarred."
+
+        @log.trace "Uploading and unpacking..."
+        guestfs.tar_in("/tmp/bg_install_files.tar", dir)
+        @log.trace "Files uploaded."
+
+      end
+      @log.debug "Files installed."
+    end
   end
 end

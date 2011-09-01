@@ -39,6 +39,7 @@ module BoxGrinder
       @appliance_config.stub!(:os).and_return(OpenCascade.new({:name => 'fedora', :version => '13'}))
       @appliance_config.stub!(:hardware).and_return(OpenCascade.new({:arch => 'x86_64'}))
       @appliance_config.stub!(:is64bit?).and_return(true)
+      @appliance_config.stub!(:packages).and_return(['mc'])
 
       @plugin = FedoraPlugin.new.init(@config, @appliance_config, {:class => BoxGrinder::FedoraPlugin, :type => :os, :name => :fedora, :full_name => "Fedora", :versions => ["11", "12", "13", "14", "rawhide"]}, :log => LogHelper.new(:level => :trace, :type => :stdout))
 
@@ -86,6 +87,88 @@ module BoxGrinder
 
       @plugin.normalize_packages(packages)
       packages.should == ["@core", "system-config-firewall-base", "dhclient", "kernel"]
+    end
+
+    context "BGBUILD-204" do
+      it "should disable bios device name hints for GRUB legacy" do
+        guestfs = mock("GuestFS")
+        guestfs.should_receive(:exists).with("/boot/grub2/grub.cfg").and_return(0)
+        guestfs.should_receive(:exists).with("/boot/grub/grub.conf").and_return(1)
+        guestfs.should_receive(:sh).with("sed -i \"s/kernel\\(.*\\)/kernel\\1 biosdevname=0/g\" /boot/grub/grub.conf")
+        @plugin.disable_biosdevname(guestfs)
+      end
+
+      it "should disable bios device name hints for GRUB2" do
+        guestfs = mock("GuestFS")
+        guestfs.should_receive(:exists).with("/boot/grub2/grub.cfg").and_return(1)
+        guestfs.should_receive(:exists).with("/boot/grub/grub.conf").and_return(0)
+        guestfs.should_receive(:write).with("/etc/default/grub", "GRUB_CMDLINE_LINUX=\"quiet rhgb biosdevname=0\"\n")
+        @plugin.disable_biosdevname(guestfs)
+      end
+
+      it "should change to runlevel 3 by default" do
+        guestfs = mock("GuestFS")
+        guestfs.should_receive(:rm).with("/etc/systemd/system/default.target")
+        guestfs.should_receive(:ln_sf).with("/lib/systemd/system/multi-user.target", "/etc/systemd/system/default.target")
+        @plugin.change_runlevel(guestfs)
+      end
+
+      it "should disable netfs" do
+        guestfs = mock("GuestFS")
+        guestfs.should_receive(:sh).with("chkconfig netfs off")
+        @plugin.disable_netfs(guestfs)
+      end
+    end
+
+    it "should link /etc/mtab to /proc/self/mounts" do
+      guestfs = mock("GuestFS")
+      guestfs.should_receive(:ln_sf).with("/proc/self/mounts", "/etc/mtab")
+      @plugin.link_mtab(guestfs)
+    end
+
+    it "should replace GRUB legacy with GRUB2" do
+      guestfs = mock("GuestFS")
+      guestfs_helper = mock("GuestFSHelper")
+      guestfs_helper.should_receive(:sh).ordered.with("yum -y remove grub")
+      guestfs.should_receive(:list_devices).and_return(['/dev/vda'])
+      guestfs.should_receive(:sh).ordered.with("cd / && grub2-install --force /dev/vda")
+      guestfs.should_receive(:sh).ordered.with("cd / && grub2-mkconfig -o /boot/grub2/grub.cfg")
+      @plugin.switch_to_grub2(guestfs, guestfs_helper)
+    end
+    describe ".execute" do
+      it "should make Fedora 15 or higher work" do
+        @appliance_config.stub!(:os).and_return(OpenCascade.new({:name => 'fedora', :version => '15'}))
+
+        guestfs = mock("GuestFS")
+        guestfs_helper = mock("GuestFSHelper")
+
+        @plugin.should_receive(:normalize_packages).ordered
+        @plugin.should_receive(:disable_biosdevname).ordered.with(guestfs)
+        @plugin.should_receive(:change_runlevel).ordered.with(guestfs)
+        @plugin.should_receive(:disable_netfs).ordered.with(guestfs)
+        @plugin.should_receive(:link_mtab).ordered.with(guestfs)
+
+        @plugin.should_receive(:build_with_appliance_creator).with("file", an_instance_of(Hash)).and_yield(guestfs, guestfs_helper)
+        @plugin.execute("file")
+      end
+
+      # https://issues.jboss.org/browse/BGBUILD-298
+      it "should for Fedora 16 or higher first install GRUB2 then look after it" do
+        @appliance_config.stub!(:os).and_return(OpenCascade.new({:name => 'fedora', :version => '16'}))
+
+        guestfs = mock("GuestFS")
+        guestfs_helper = mock("GuestFSHelper")
+
+        @plugin.should_receive(:normalize_packages).ordered
+        @plugin.should_receive(:switch_to_grub2).ordered.with(guestfs, guestfs_helper)
+        @plugin.should_receive(:disable_biosdevname).ordered.with(guestfs)
+        @plugin.should_receive(:change_runlevel).ordered.with(guestfs)
+        @plugin.should_receive(:disable_netfs).ordered.with(guestfs)
+        @plugin.should_receive(:link_mtab).ordered.with(guestfs)
+
+        @plugin.should_receive(:build_with_appliance_creator).with("file", an_instance_of(Hash)).and_yield(guestfs, guestfs_helper)
+        @plugin.execute("file")
+      end
     end
   end
 end

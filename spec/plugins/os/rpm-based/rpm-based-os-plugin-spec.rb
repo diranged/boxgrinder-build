@@ -39,6 +39,7 @@ module BoxGrinder
       @appliance_config.stub!(:os).and_return(OpenCascade.new({:name => 'fedora', :version => '11'}))
       @appliance_config.stub!(:hardware).and_return(OpenCascade.new(:cpus => 1, :memory => 512, :partitions => {'/' => nil, '/home' => nil}))
       @appliance_config.stub!(:path).and_return(OpenCascade.new(:build => 'build/path', :main => 'mainpath'))
+      @appliance_config.stub!(:files).and_return({})
 
       @plugin = RPMBasedOSPlugin.new
 
@@ -246,10 +247,6 @@ module BoxGrinder
         @plugin.should_receive(:add_repos).ordered.with({})
 
         do_build do |guestfs, guestfs_helper|
-          @plugin.should_receive(:disable_biosdevname).ordered.with(guestfs)
-          @plugin.should_receive(:change_runlevel).ordered.with(guestfs)
-          @plugin.should_receive(:disable_netfs).ordered.with(guestfs)
-          @plugin.should_receive(:link_mtab).ordered.with(guestfs)
           @plugin.should_receive(:recreate_rpm_database).ordered.with(guestfs, guestfs_helper)
           @plugin.should_receive(:execute_post).ordered.with(guestfs_helper)
         end
@@ -298,7 +295,7 @@ module BoxGrinder
     end
 
     describe ".cleanup_after_appliance_creator" do
-      it "should cleanup after appliance creator (surprisngly!)" do
+      it "should cleanup after appliance creator (surprisingly!)" do
         Process.should_receive(:kill).with("TERM", 12345)
         Process.should_receive(:wait).with(12345)
 
@@ -346,30 +343,60 @@ module BoxGrinder
       end
     end
 
-    context "BGBUILD-204" do
-      it "should disable bios device name hints" do
+    describe ".install_files" do
+      it "should install files with relative paths" do
+        @appliance_config.stub!(:files).and_return("/opt" => ['abc', 'def'])
+        @plugin.instance_variable_set(:@appliance_definition_file, "file")
+
         guestfs = mock("GuestFS")
-        guestfs.should_receive(:sh).with("sed -i \"s/kernel\\(.*\\)/kernel\\1 biosdevname=0/g\" /boot/grub/grub.conf")
-        @plugin.disable_biosdevname(guestfs)
+        guestfs.should_receive(:exists).with("/opt").once.and_return(1)
+        guestfs.should_receive(:tar_in).with("/tmp/bg_install_files.tar", "/opt")
+
+        @exec_helper.should_receive(:execute).with("tar -cvf /tmp/bg_install_files.tar --wildcards ./abc ./def")
+
+        @plugin.install_files(guestfs)
       end
 
-      it "should change to runlevel 3 by default" do
+      it "should install files with absolute paths" do
+        @appliance_config.stub!(:files).and_return("/opt" => ['/opt/abc', '/opt/def'])
+        @plugin.instance_variable_set(:@appliance_definition_file, "file")
+
         guestfs = mock("GuestFS")
-        guestfs.should_receive(:rm).with("/etc/systemd/system/default.target")
-        guestfs.should_receive(:ln_sf).with("/lib/systemd/system/multi-user.target", "/etc/systemd/system/default.target")
-        @plugin.change_runlevel(guestfs)
+        guestfs.should_receive(:exists).with("/opt").once.and_return(1)
+        guestfs.should_receive(:tar_in).with("/tmp/bg_install_files.tar", "/opt")
+
+        @exec_helper.should_receive(:execute).with("tar -cvf /tmp/bg_install_files.tar --wildcards /opt/abc /opt/def")
+
+        @plugin.install_files(guestfs)
       end
 
-      it "should disable netfs" do
+      it "should install files with remote paths" do
+        @appliance_config.stub!(:files).and_return("/opt" => ['http://somehost/file.zip', 'https://somehost/something.tar.gz', 'ftp://somehost/ftp.txt'])
+        @plugin.instance_variable_set(:@appliance_definition_file, "file")
+
         guestfs = mock("GuestFS")
-        guestfs.should_receive(:sh).with("chkconfig netfs off")
-        @plugin.disable_netfs(guestfs)
+
+        guestfs.should_receive(:exists).with("/opt").once.and_return(1)
+        guestfs.should_receive(:sh).with("cd /opt && curl -O -L http://somehost/file.zip")
+        guestfs.should_receive(:sh).with("cd /opt && curl -O -L https://somehost/something.tar.gz")
+        guestfs.should_receive(:sh).with("cd /opt && curl -O -L ftp://somehost/ftp.txt")
+
+        @plugin.install_files(guestfs)
       end
-    end
-    it "should link /etc/mtab to /proc/self/mounts" do
-      guestfs = mock("GuestFS")
-      guestfs.should_receive(:ln_sf).with("/proc/self/mounts", "/etc/mtab")
-      @plugin.link_mtab(guestfs)
+
+      it "should create the destination directory if it doesn't exists" do
+        @appliance_config.stub!(:files).and_return("/opt/aaa" => ['abc'])
+        @plugin.instance_variable_set(:@appliance_definition_file, "file")
+
+        guestfs = mock("GuestFS")
+        guestfs.should_receive(:exists).with("/opt/aaa").and_return(0)
+        guestfs.should_receive(:mkdir_p).with("/opt/aaa")
+        guestfs.should_receive(:tar_in).with("/tmp/bg_install_files.tar", "/opt/aaa")
+
+        @exec_helper.should_receive(:execute).with("tar -cvf /tmp/bg_install_files.tar --wildcards ./abc")
+
+        @plugin.install_files(guestfs)
+      end
     end
   end
 end

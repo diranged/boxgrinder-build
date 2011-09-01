@@ -5,7 +5,7 @@
 
 Summary: A tool for creating appliances from simple plain text files
 Name: rubygem-%{gemname}
-Version: 0.9.4
+Version: 0.9.6
 Release: 1%{?dist}
 Group: Development/Languages
 License: LGPLv3+
@@ -17,9 +17,6 @@ Requires: rubygem(boxgrinder-core) >= 0.3.0
 Requires: rubygem(boxgrinder-core) < 0.4.0
 Requires: ruby-libguestfs
 
-# Fix for rubygem-aws package
-Requires: rubygem(activesupport)
-
 BuildArch: noarch
 
 BuildRequires: rubygem(rake)
@@ -30,20 +27,11 @@ BuildRequires: ruby-libguestfs
 # Use rspec-core until rspec are migrated to RSpec 2.x
 BuildRequires: rubygem(rspec-core)
 
-# Fix for rubygem-aws package
-BuildRequires: rubygem(activesupport)
-
-# EBS and S3
-Requires: rubygem(amazon-ec2)
-# Fixes blankslate error
-Requires: rubygem(builder)
-Requires: rubygem(aws)
+# AWS
 Requires: euca2ools >= 1.3.1-4
+Requires: rubygem(aws-sdk) >= 1.1.1
 
-BuildRequires: rubygem(amazon-ec2)
-BuildRequires: rubygem(aws)
-# Fixes blankslate error
-BuildRequires: rubygem(builder)
+BuildRequires: rubygem(aws-sdk) >= 1.1.1
 
 # SFTP
 Requires: rubygem(net-sftp)
@@ -58,10 +46,9 @@ BuildRequires: rubygem(progressbar)
 Requires: appliance-tools
 Requires: yum-utils
 
-# ElasticHosts
-Requires: rubygem(rest-client)
-
+#Elastichosts
 BuildRequires: rubygem(rest-client)
+Requires: rubygem(rest-client)
 
 Provides: rubygem(%{gemname}) = %{version}
 
@@ -143,13 +130,44 @@ popd
 %{gemdir}/doc/%{gemname}-%{version}
 
 %changelog
+* Sat Aug 27 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.6-1
+- Upstream release: 0.9.6
+- [BGBUILD-298] Fedora 16 or newer has networking issue on platforms different than EC2 because of biosdevname not disabled
+- [BGBUILD-299] Wrong filenames in GRUB discovery
+- [BGBUILD-276] Import files into appliance via appliance definition file (Files section)
+- [BGBUILD-300] Add support for swap partitions
 
-* Wed Jun 29 2011 Marc Savy <msavy@redhat.com> - 0.9.4-1
+* Sat Aug 27 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.5.3-1
+- Upstream release: 0.9.5.3
+
+* Sat Aug 27 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.5.2-1
+- Upstream release: 0.9.5.2
+- More mocking in specs preventing remote calls - now for real
+
+* Sat Aug 27 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.5.1-1
+- Upstream release: 0.9.5.1
+- More mocking in specs preventing remote calls
+
+* Thu Aug 23 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.5-1
+- Upstream release: 0.9.5
+- [BGBUILD-294] Package aws-sdk 1.1.1 and update dependency
+- [BGBUILD-277] When delivering as AMI, the EC2 region should match S3 bucket's region (location constraint)
+- [BGBUILD-297] Cannot create EBS appliances when using overwrite parameter
+- [BGBUILD-280] Add support for GRUB2
+- [BGBUILD-279] Add support for Fedora 16
+- [BGBUILD-293] Check certificate and key paths are valid before building AMIs
+
+* Fri Aug 12 2011 Marc Savy <msavy@redhat.com> - 0.9.4-1
 - Upstream release: 0.9.4
 - [BGBUILD-263] NoMethodError: undefined method `item' for nil:NilClass while creating EBS appliance
 - [BGBUILD-246] Detect when insufficient system memory is available for standard libguestfs, and reduce allocation.
 - [BGBUILD-269] RPM database is recreated after post section execution preventing installing RPM in post section
 - [BGBUILD-273] Move to RSpec2
+- [BGBUILD-272] Move from aws and amazon-ec2 to official aws-sdk gem
+- [BGBUILD-238] Stop AWS gem warnings
+- [BGBUILD-265] Resolve concurrency issues in S3 plugin for overwriting
+- [BGBUILD-249] Warning from S3 AMI plugin that BG is attempting to create a bucket that already exists
+- [BGBUILD-242]	Additional EBS overwrite edge cases
 
 * Fri Jun 17 2011 Marc Savy <msavy@redhat.com> - 0.9.3-1
 - Upstream release: 0.9.3
@@ -161,7 +179,7 @@ popd
 - [BGBUILD-222] Allow overwrite of uploaded ec2 image
 - [BGBUILD-225] Move PAE configuration parameter to operating system configuration
 - [BGBUILD-224] EBS Plugin Support for CentOS v5.5 and fix for non-integer EBS disk sizes
-- [BGBUILD-231] Cannot register Fedora 15 EC2 AMI with S3 delivery plugin in eu-west-1 availability zone
+- [BGBUILD-231] Cannot register Fedora 15 EC2 AMI with S3 delivery plugin in eu-west-1 availability zone
 - [BGBUILD-193] EBS delivery plugin timing/concurrency issues
 - [BGBUILD-247] ap-northeast-1 end-point is missing in S3 plugin (added Tokyo region)
 - [BGBUILD-251] Add ap-northeast-1 (tokyo) region for EBS plugin

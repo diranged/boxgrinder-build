@@ -53,6 +53,11 @@ module BoxGrinder
         @appliance = Appliance.new("#{File.dirname(__FILE__)}/../appliances/jeos-fedora.appl", @config, :log => @log).create
       end
 
+      it "should build Fedora 16 JEOS and create an AMI" do
+        @config.merge!(:platform => :ec2, :delivery => :ami)
+        @appliance = Appliance.new("#{File.dirname(__FILE__)}/../appliances/jeos-f16.appl", @config, :log => @log).create
+      end
+
       it "should build CentOS JEOS" do
         @appliance = Appliance.new("#{File.dirname(__FILE__)}/../appliances/jeos-centos.appl", @config, :log => @log).create
       end

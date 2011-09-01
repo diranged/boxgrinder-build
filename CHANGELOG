@@ -1,9 +1,42 @@
+v0.9.6
+
+* [BGBUILD-298] Fedora 16 or newer has networking issue on platforms different than EC2 because of biosdevname not disabled
+* [BGBUILD-299] Wrong filenames in GRUB discovery
+* [BGBUILD-276] Import files into appliance via appliance definition file (Files section)
+* [BGBUILD-300] Add support for swap partitions
+
+v0.9.5.3
+
+* What a shame, fixing the mocks again...
+
+v0.9.5.2
+
+* More mocking in specs preventing remote calls - now for real
+
+v0.9.5.1
+
+* More mocking in specs preventing remote calls
+
+v0.9.5
+
+* [BGBUILD-294] Package aws-sdk 1.1.1 and update dependency
+* [BGBUILD-277] When delivering as AMI, the EC2 region should match S3 bucket's region (location constraint)
+* [BGBUILD-297] Cannot create EBS appliances when using overwrite parameter
+* [BGBUILD-280] Add support for GRUB2
+* [BGBUILD-279] Add support for Fedora 16
+* [BGBUILD-293] Check certificate and key paths are valid before building AMIs
+
 v0.9.4
 
 * [BGBUILD-263] NoMethodError: undefined method `item' for nil:NilClass while creating EBS appliance
 * [BGBUILD-246] Detect when insufficient system memory is available for standard libguestfs, and reduce allocation.
 * [BGBUILD-269] RPM database is recreated after post section execution preventing installing RPM in post section
 * [BGBUILD-273] Move to RSpec2
+* [BGBUILD-272] Move from aws and amazon-ec2 to official aws-sdk gem
+* [BGBUILD-238] Stop AWS gem warnings
+* [BGBUILD-265] Resolve concurrency issues in S3 plugin for overwriting
+* [BGBUILD-249] Warning from S3 AMI plugin that BG is attempting to create a bucket that already exists
+* [BGBUILD-242]	Additional EBS overwrite edge cases
 
 v0.9.3
 

@@ -17,7 +17,8 @@
 # 02110-1301 USA, or see the FSF site: http://www.fsf.org.
 
 require 'boxgrinder-build/plugins/base-plugin'
-require 'restclient'
+require 'rubygems'
+require 'rest_client'
 require 'zlib'
 require 'cgi'
 
