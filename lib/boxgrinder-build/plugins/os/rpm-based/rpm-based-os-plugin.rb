@@ -139,6 +139,7 @@ module BoxGrinder
         change_configuration(guestfs_helper)
         # TODO check if this is still required
         apply_root_password(guestfs)
+        set_label_for_swap_partitions(guestfs, guestfs_helper)
         use_labels_for_partitions(guestfs)
         disable_firewall(guestfs)
         set_motd(guestfs)
@@ -241,22 +242,35 @@ module BoxGrinder
       @log.debug "Firewall disabled."
     end
 
+    # https://issues.jboss.org/browse/BGBUILD-301
+    def set_label_for_swap_partitions(guestfs, guestfs_helper)
+      @log.trace "Searching for swap partition to set label..."
+
+      guestfs_helper.mountable_partitions(guestfs.list_devices.first, :list_swap => true).each do |p|
+        if guestfs.vfs_type(p).eql?('swap')
+          @log.debug "Setting 'swap' label for partiiton '#{p}'."
+          guestfs.mkswap_L('swap', p)
+          @log.debug "Label set."
+          # We assume here that nobody will want to have two swap partitions
+          break
+        end
+      end
+    end
+
     def use_labels_for_partitions(guestfs)
+      @log.debug "Using labels for partitions..."
       device = guestfs.list_devices.first
 
       # /etc/fstab
-      if fstab = guestfs.read_file('/etc/fstab').gsub!(/^(\/dev\/sda.)/) { |path| "LABEL=#{read_label(guestfs, path.gsub('/dev/sda', device))}" }
+      if fstab = guestfs.read_file('/etc/fstab').gsub!(/^(\/dev\/sda.)/) { |path| "LABEL=#{guestfs.vfs_label(path.gsub('/dev/sda', device))}" }
         guestfs.write_file('/etc/fstab', fstab, 0)
       end
 
       # /boot/grub/grub.conf
-      if grub = guestfs.read_file('/boot/grub/grub.conf').gsub!(/(\/dev\/sda.)/) { |path| "LABEL=#{read_label(guestfs, path.gsub('/dev/sda', device))}" }
+      if grub = guestfs.read_file('/boot/grub/grub.conf').gsub!(/(\/dev\/sda.)/) { |path| "LABEL=#{guestfs.vfs_label(path.gsub('/dev/sda', device))}" }
         guestfs.write_file('/boot/grub/grub.conf', grub, 0)
       end
-    end
-
-    def read_label(guestfs, partition)
-      (guestfs.respond_to?(:vfs_label) ? guestfs.vfs_label(partition) : guestfs.sh("/sbin/e2label #{partition}").chomp.strip).gsub('_', '')
+      @log.debug "Done."
     end
 
     def apply_root_password(guestfs)

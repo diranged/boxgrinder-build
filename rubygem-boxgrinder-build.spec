@@ -5,7 +5,7 @@
 
 Summary: A tool for creating appliances from simple plain text files
 Name: rubygem-%{gemname}
-Version: 0.9.6
+Version: 0.10.0
 Release: 1%{?dist}
 Group: Development/Languages
 License: LGPLv3+
@@ -130,12 +130,16 @@ popd
 %{gemdir}/doc/%{gemname}-%{version}
 
 %changelog
+* Tue Sep 06 2011 Marek Goldmann <mgoldman@redhat.com> - 0.10.0-1
+- Upstream release: 0.10.0
+
 * Sat Aug 27 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.6-1
 - Upstream release: 0.9.6
 - [BGBUILD-298] Fedora 16 or newer has networking issue on platforms different than EC2 because of biosdevname not disabled
 - [BGBUILD-299] Wrong filenames in GRUB discovery
 - [BGBUILD-276] Import files into appliance via appliance definition file (Files section)
 - [BGBUILD-300] Add support for swap partitions
+- [BGBUILD-301] Swap feature not working properly
 
 * Sat Aug 27 2011 Marek Goldmann <mgoldman@redhat.com> - 0.9.5.3-1
 - Upstream release: 0.9.5.3
